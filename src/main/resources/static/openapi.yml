@@ -1,0 +1,195 @@
+openapi: 3.0.0
+info:
+  title: Pagamentos API
+  version: 1.0.0
+paths:
+  /api/v1/payments:
+    post:
+      summary: Criar Pagamento
+      operationId: createPayment
+      tags:
+        - payments
+      requestBody:
+        description: Criar Novo Pagamento
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '200':
+          description: Pagamento criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePaymentResponse'
+        '400':
+          description: Erro no pagamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+  /api/v1/webhook/{id}:
+    post:
+      summary: Webhook
+      operationId: sendWebhook
+      tags:
+        - webhook
+      parameters:
+        - name: id
+          in: path
+          description: ID do pagamento
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Criar Novo Pagamento
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+      responses:
+        '200':
+          description: Pagamento confirmado
+
+
+
+  /api/v1/payments/{id}/confirm:
+    post:
+      summary: Confirmar pagamento
+      operationId: confirmPayment
+      tags:
+        - payments
+      parameters:
+        - name: id
+          in: path
+          description: ID do pagamento
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Pagamento confirmado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmPaymentResponse'
+        '404':
+          description: Pagamento não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    PaymentStatus:
+      type: string
+      description: Status atual do pagamento Pix
+      enum:
+        - CREATED
+        - PENDING
+        - PROCESSING
+        - COMPLETED
+        - FAILED
+        - EXPIRED
+        - REFUNDED
+    CreatePaymentRequest:
+      type: object
+      required:
+        - pixKey
+        - amount
+      properties:
+        pixKey:
+          type: string
+          example: "user@example.com"
+          description: Chave Pix do recebedor
+        amount:
+          type: number
+          example: 123.45
+          description: Valor do pagamento
+        webhookUrl:
+          type: string
+          nullable: true
+          example: "http://localhost:9000/webhook/pix"
+          description: URL para envio do webhook (opcional)
+    WebhookRequest:
+      type: object
+      required:
+        - id
+        - amount
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Id do pagameto
+        amount:
+          type: number
+          example: 123.45
+          description: Valor do pagamento
+    CreatePaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        status:
+          type: string
+          example: CREATED
+    ConfirmPaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        status:
+          type: string
+          example: CONFIRMED
+#    Payment:
+#      type: object
+#      properties:
+#        id:
+#          type: integer
+#          format: int64
+#        pixKey:
+#          type: string
+#        amount:
+#          type: number
+#
+#        status:
+#          type: string
+#          enum:
+#            - CREATED
+#            - CONFIRMED
+#            - FAILED
+#        createdAt:
+#          type: string
+#          format: date-time
+#        confirmedAt:
+#          type: string
+#          format: date-time
+#          nullable: true
+#        webhookUrl:
+#          type: string
+#          nullable: true
+#        webhookSent:
+#          type: boolean
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
