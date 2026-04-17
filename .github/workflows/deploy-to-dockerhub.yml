@@ -74,7 +74,8 @@ jobs:
             --set image.tag=${{ github.sha }} \
             --set service.type=LoadBalancer  \
             --set service.port=80 \
-            --set containerPort=8080
+            --set containerPort=8080 \
+            --set serviceAccount.create=true
       - name: Get Load Balancer URL
         run: |
           echo "Aguardando o Load Balancer gerar o endereço..."
