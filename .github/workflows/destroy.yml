@@ -12,15 +12,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1. Configurar as credenciais da AWS para Helm e Terraform
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # 2. Remover a aplicação do Kubernetes (Limpa o Load Balancer da AWS)
+      - name: Uninstall Helm Release
+        run: |
+          # O comando pode falhar se o cluster não existir, por isso o "|| true"
+          aws eks update-kubeconfig --name pix-simulator-cluster --region us-east-1 || true
+          helm uninstall pix-simulator || true
+
+      # 3. Preparar o Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # 4. Destruir a Infraestrutura (VPC, EKS, etc)
       - name: Terraform Init e Destroy
         working-directory: ./terraform
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           terraform init
-          # Passamos um valor qualquer para image_name apenas para validar o plano de destruição
-          terraform destroy -auto-approve -var="image_name=cleanup"
+          terraform destroy -auto-approve
