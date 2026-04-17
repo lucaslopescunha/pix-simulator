@@ -1,0 +1,49 @@
+replicaCount: 2
+
+image:
+  # O GitHub Actions vai sobrescrever estes valores via --set
+  repository: ""
+  pullPolicy: Always
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "pix-simulator"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "pix-simulator-sa"
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  port: 80
+
+resources:
+  # Ajustado para t3.medium (que tem 4GB de RAM)
+  # O Java precisa de uma folga de memória para a JVM
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+# Adicionado Liveness e Readiness (Padrão Spring Boot Actuator se você usar)
+# Se não usar Actuator, o Kubernetes apenas checará se o processo Java está vivo
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
