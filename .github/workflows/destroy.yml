@@ -33,7 +33,7 @@ jobs:
 
       # 4. Destruir a Infraestrutura (VPC, EKS, etc)
       - name: Terraform Init e Destroy
-        working-directory: ../../terraform
+        working-directory: ./terraform
         run: |
           terraform init
           terraform destroy -auto-approve
