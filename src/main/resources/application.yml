@@ -21,6 +21,7 @@ logging:
   level:
     root: INFO
     com.example.pix: DEBUG
+    org.springframework.boot.actuate.health: DEBUG
 
 pix:
   webhook:
@@ -33,3 +34,13 @@ springdoc:
     url: /openapi.yml
   api-docs:
     path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true

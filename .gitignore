@@ -33,3 +33,5 @@ build/
 .vscode/
 /compose/data/pixdb.mv.db
 /data/pixdb.mv.db
+/terraform/.terraform/
+/k8s-chart/templates/NOTES.txt

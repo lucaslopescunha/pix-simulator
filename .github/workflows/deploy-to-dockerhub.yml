@@ -39,3 +39,36 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator:${{ github.sha }}
+
+      # ... (passos de Build e Push do Docker permanecem iguais) ...
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Update KubeConfig
+        run: aws eks update-kubeconfig --name pix-simulator-cluster --region us-east-1
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install pix-simulator ./k8s-chart \
+            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator \
+            --set image.tag=${{ github.sha }} \
+            --set service.type=LoadBalancer  \
+            --set service.port=80 \
+            --set containerPort=8080
