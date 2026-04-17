@@ -75,3 +75,11 @@ jobs:
             --set service.type=LoadBalancer  \
             --set service.port=80 \
             --set containerPort=8080
+      - name: Get Load Balancer URL
+        run: |
+          echo "Aguardando o Load Balancer gerar o endereço..."
+          sleep 30
+          URL=$(kubectl get svc pix-simulator -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "------------------------------------------------"
+          echo "O LINK DA SUA APLICAÇÃO É: http://$URL"
+          echo "------------------------------------------------"
