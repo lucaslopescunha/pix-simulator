@@ -1,9 +1,8 @@
 name: Terraform Destroy Test
 
 on:
-  push:
-    branches: [ "main", "master" ] # Adicione isso temporariamente
   workflow_dispatch:
+    branches: [ "main", "master" ] # Adicione isso temporariamente
 
 jobs:
   terraform-destroy:
