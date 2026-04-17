@@ -8,13 +8,16 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
+import java.time.LocalDateTime;
+
 
 @Service
 @AllArgsConstructor
 public class CreatePaymentService implements CreatePaymentUseCase {
 
     private final PaymentRepositoryPort repositoryPort;
+    private final Clock clock;
 
 
     @Override
@@ -24,7 +27,7 @@ public class CreatePaymentService implements CreatePaymentUseCase {
                        .pixKey(pixKey)
                        .amount(amount)
                        .status(PaymentStatus.CREATED)
-                       .createdAt(Instant.now())
+                       .createdAt(LocalDateTime.now(clock))
                        .webhookUrl(webhookUrl)
                        .webhookSent(false)
                        .build();

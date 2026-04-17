@@ -1,10 +1,13 @@
 package com.example.pixsimulator.domain;
 
 import com.example.pixsimulator.domain.enumeration.PaymentStatus;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -15,8 +18,8 @@ public class Payment {
     private String pixKey;
     private BigDecimal amount;
     private PaymentStatus status;
-    private Instant createdAt;
-    private Instant confirmedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime confirmedAt;
     private String webhookUrl;
     private boolean webhookSent;
 

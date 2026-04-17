@@ -7,12 +7,15 @@ import com.example.pixsimulator.domain.enumeration.PaymentStatus;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @AllArgsConstructor
 public class ConfirmPaymentService implements ConfirmPaymentUseCase {
+
     private final PaymentRepositoryPort repositoryPort;
+    private final Clock clock;
 
     @Override
     public Payment confirm(Long id) {
@@ -22,7 +25,7 @@ public class ConfirmPaymentService implements ConfirmPaymentUseCase {
         }
         Payment p = opt.get();
         p.setStatus(PaymentStatus.CONFIRMED);
-        p.setConfirmedAt(Instant.now());
+        p.setConfirmedAt(LocalDateTime.now(clock));
         p.setWebhookSent(false);
         return repositoryPort.save(p);
     }

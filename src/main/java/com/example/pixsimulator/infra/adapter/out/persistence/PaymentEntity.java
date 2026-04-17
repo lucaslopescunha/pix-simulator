@@ -2,10 +2,13 @@ package com.example.pixsimulator.infra.adapter.out.persistence;
 
 import com.example.pixsimulator.domain.enumeration.PaymentStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name="payments")
@@ -26,8 +29,8 @@ public class PaymentEntity {
     @Column(length = 20)
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
-    private Instant createdAt;
-    private Instant confirmedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime confirmedAt;
     private String webhookUrl;
     private boolean webhookSent;
 
