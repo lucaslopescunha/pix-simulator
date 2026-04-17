@@ -45,7 +45,7 @@ public class ConfirmPaymentServiceTest {
         );
 
         Payment paymentUpdated = createPayment(id,
-                PaymentStatus.CREATED,
+                PaymentStatus.CONFIRMED,
                 fixedTime,
                 fixedTime
         );
@@ -89,9 +89,7 @@ public class ConfirmPaymentServiceTest {
                 .amount(BigDecimal.ONE)
                 .createdAt(createdAt)
                 .confirmedAt(confirmedAt)
-                .pixKey("pixKey")
                 .webhookSent(false)
-                .webhookUrl("webhookUrl1")
                 .build();
 
     }
