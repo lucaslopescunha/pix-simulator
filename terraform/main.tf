@@ -28,14 +28,17 @@ module "vpc" {
 
   azs             = ["us-east-1a", "us-east-1b"]
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]   # Onde ficará o LoadBalancer
-  private_subnets = ["10.0.10.0/24", "10.0.11.0/24"] # Onde ficarão as máquinas (Nodes)
+  #private_subnets = ["10.0.10.0/24", "10.0.11.0/24"] # Onde ficarão as máquinas (Nodes)
 
-  # Desativamos o IP público automático nos nós
-  map_public_ip_on_launch = false
-
+  # map_public_ip_on_launch = false
+  # Ativamos o IP público automático nos nós
+  map_public_ip_on_launch = true
   # NAT Gateway: Essencial para os nós na rede privada acessarem o Docker Hub
-  enable_nat_gateway = true
-  single_nat_gateway = true # Mantém o custo menor (apenas 1 NAT para o cluster)
+  #enable_nat_gateway = true
+  #single_nat_gateway = true # Mantém o custo menor (apenas 1 NAT para o cluster)
+    # DESATIVA O NAT GATEWAY (ECONOMIA DE DINHEIRO)
+  enable_nat_gateway = false
+  enable_vpn_gateway = false
 }
 
 # 2. Cluster EKS configurado para usar a rede privada
@@ -48,7 +51,8 @@ module "eks" {
 
   vpc_id     = module.vpc.vpc_id
   # Importante: Os nós ficam nas subnets PRIVADAS
-  subnet_ids = module.vpc.private_subnets
+#  subnet_ids = module.vpc.private_subnets
+  subnet_ids = module.vpc.public_subnets # Usa as subnets públicas
 
   # O endpoint do cluster pode ser público para você gerenciar do seu terminal
   cluster_endpoint_public_access = true
