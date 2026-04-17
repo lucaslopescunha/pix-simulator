@@ -45,7 +45,7 @@ public class ConfirmPaymentServiceTest {
         );
 
         Payment paymentUpdated = createPayment(id,
-                PaymentStatus.CONFIRMED,
+                PaymentStatus.CREATED,
                 fixedTime,
                 fixedTime
         );
