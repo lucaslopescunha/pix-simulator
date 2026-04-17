@@ -69,6 +69,6 @@ jobs:
           helm upgrade --install pix-simulator ./k8s-chart \
             --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator \
             --set image.tag=${{ github.sha }} \
-            --set service.type=ClusterIP  \
+            --set service.type=LoadBalancer  \
             --set service.port=80 \
             --set containerPort=8080
