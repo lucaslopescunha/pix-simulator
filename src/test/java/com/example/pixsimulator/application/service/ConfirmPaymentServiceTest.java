@@ -91,7 +91,7 @@ public class ConfirmPaymentServiceTest {
                 .confirmedAt(confirmedAt)
                 .pixKey("pixKey")
                 .webhookSent(false)
-                .webhookUrl("webhookUrl")
+                .webhookUrl("webhookUrl1")
                 .build();
 
     }
