@@ -11,13 +11,15 @@ spec:
       {{- include "k8s-chart.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "k8s-chart.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+          {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+          {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -49,16 +51,16 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 10
           resources:
-            {{ - toYaml .Values.resources | nindent 12 }}
-              {{ - with .Values.nodeSelector }}
-              nodeSelector:
-                {{ - toYaml . | nindent 8 }}
-              {{ - end }}
-              {{ - with .Values.affinity }}
-              affinity:
-                {{ - toYaml . | nindent 8 }}
-              {{ - end }}
-              {{ - with .Values.tolerations }}
-              tolerations:
-                {{ - toYaml . | nindent 8 }}
-              {{ - end }}
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
