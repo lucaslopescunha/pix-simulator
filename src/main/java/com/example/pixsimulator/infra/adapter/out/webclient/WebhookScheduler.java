@@ -51,14 +51,14 @@ public class WebhookScheduler {
         for(Payment p: pending) {
             String url = StringUtils.isNotBlank(p.getWebhookUrl()) ? p.getWebhookUrl() : defaultUrl;
             try {
-                webClient.post()
-                        .uri(url)
-                        .bodyValue(new WebhookRequest(p.getId(), p.getAmount()
-                        )).retrieve()
-                        .bodyToMono(Void.class)
-                        .timeout(Duration.ofSeconds(5))
-                        .onErrorResume(e-> Mono.empty())
-                        .block();
+//                webClient.post()
+//                        .uri(url)
+//                        .bodyValue(new WebhookRequest(p.getId(), p.getAmount()
+//                        )).retrieve()
+//                        .bodyToMono(Void.class)
+//                        .timeout(Duration.ofSeconds(5))
+//                        .onErrorResume(e-> Mono.empty())
+//                        .block();
 
                 repositoryPort.markWebhookSent(p.getId());
             } catch(Exception e) {
