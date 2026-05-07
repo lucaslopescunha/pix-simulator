@@ -190,9 +190,6 @@ resource "aws_ecs_task_definition" "app" {
 
   cpu    = "512"
   memory = "1024"
-  ephemeral_storage {
-      size_in_gib = 4
-  }
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
