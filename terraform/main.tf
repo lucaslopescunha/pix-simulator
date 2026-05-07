@@ -1,11 +1,13 @@
 terraform {
   required_version = ">= 1.5.0"
+
   backend "s3" {
     bucket  = "pix-simulator-s3"
     key     = "pix-simulator/terraform.tfstate"
     region  = "us-east-1"
     encrypt = true
   }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -18,7 +20,11 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# 1. VPC configurada com Subnets Públicas e Privadas
+#################################################
+# 1. VPC com subnets públicas para ALB
+#    e privadas para ECS Fargate
+#################################################
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.0.0"
@@ -26,49 +32,227 @@ module "vpc" {
   name = "pix-simulator-vpc"
   cidr = "10.0.0.0/16"
 
-  azs             = ["us-east-1a", "us-east-1b"]
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]   # Onde ficará o LoadBalancer
-  #private_subnets = ["10.0.10.0/24", "10.0.11.0/24"] # Onde ficarão as máquinas (Nodes)
+  azs = [
+    "us-east-1a",
+    "us-east-1b"
+  ]
 
-  # map_public_ip_on_launch = false
-  # Ativamos o IP público automático nos nós
-  map_public_ip_on_launch = true
-  # NAT Gateway: Essencial para os nós na rede privada acessarem o Docker Hub
-  #enable_nat_gateway = true
-  #single_nat_gateway = true # Mantém o custo menor (apenas 1 NAT para o cluster)
-    # DESATIVA O NAT GATEWAY (ECONOMIA DE DINHEIRO)
-  enable_nat_gateway = false
+  # Load Balancer público
+  public_subnets = [
+    "10.0.1.0/24",
+    "10.0.2.0/24"
+  ]
+
+  # Tasks do ECS Fargate
+  private_subnets = [
+    "10.0.10.0/24",
+    "10.0.11.0/24"
+  ]
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
   enable_vpn_gateway = false
+
+  map_public_ip_on_launch = false
 }
 
-# 2. Cluster EKS configurado para usar a rede privada
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.0"
+#################################################
+# 2. ECS Cluster
+#################################################
 
-  cluster_name    = "pix-simulator-cluster"
-  cluster_version = "1.30"
+resource "aws_ecs_cluster" "main" {
+  name = "pix-simulator-cluster"
+}
 
-  vpc_id     = module.vpc.vpc_id
-  # Importante: Os nós ficam nas subnets PRIVADAS
-#  subnet_ids = module.vpc.private_subnets
-  subnet_ids = module.vpc.public_subnets # Usa as subnets públicas
+#################################################
+# 3. Security Group do ALB
+#################################################
 
-  # O endpoint do cluster pode ser público para você gerenciar do seu terminal
-  cluster_endpoint_public_access = true
+resource "aws_security_group" "alb_sg" {
+  name        = "pix-simulator-alb-sg"
+  description = "Security Group do ALB"
+  vpc_id      = module.vpc.vpc_id
 
-  enable_cluster_creator_admin_permissions = true
+  ingress {
+    description = "HTTP público"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-  eks_managed_node_groups = {
-    main = {
-      instance_types = ["t3.medium"]
-      min_size     = 1
-      max_size     = 2
-      desired_size = 1
-    }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-output "cluster_name" {
-  value = module.eks.cluster_name
+#################################################
+# 4. Security Group do ECS Service
+#################################################
+
+resource "aws_security_group" "ecs_sg" {
+  name        = "pix-simulator-ecs-sg"
+  description = "Security Group do ECS Fargate"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description     = "Tráfego vindo do ALB"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+#################################################
+# 5. Application Load Balancer
+#################################################
+
+resource "aws_lb" "main" {
+  name               = "pix-simulator-alb"
+  internal           = false
+  load_balancer_type = "application"
+
+  security_groups = [
+    aws_security_group.alb_sg.id
+  ]
+
+  subnets = module.vpc.public_subnets
+}
+
+resource "aws_lb_target_group" "main" {
+  name        = "pix-simulator-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = module.vpc.vpc_id
+
+  health_check {
+    path = "/actuator/health"
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.main.arn
+  }
+}
+
+#################################################
+# 6. IAM Role para ECS Task Execution
+#################################################
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "pix-simulator-ecs-task-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+#################################################
+# 7. Task Definition
+#################################################
+
+resource "aws_ecs_task_definition" "app" {
+  family                   = "pix-simulator-task"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+
+  cpu    = "512"
+  memory = "1024"
+  ephemeral_storage {
+      size_in_gib = 4
+  }
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "pix-simulator"
+      image = "lucaslopescunha/pix-simulator:latest"
+
+      essential = true
+
+      portMappings = [
+        {
+          containerPort = 8080
+          hostPort      = 8080
+          protocol      = "tcp"
+        }
+      ]
+    }
+  ])
+}
+
+#################################################
+# 8. ECS Service com Fargate
+#################################################
+
+resource "aws_ecs_service" "app" {
+  name            = "pix-simulator-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.app.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  depends_on = [
+    aws_lb_listener.http
+  ]
+
+  network_configuration {
+    subnets = module.vpc.private_subnets
+
+    security_groups = [
+      aws_security_group.ecs_sg.id
+    ]
+
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.main.arn
+    container_name   = "pix-simulator"
+    container_port   = 8080
+  }
+}
+
+#################################################
+# Outputs
+#################################################
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.main.name
+}
+
+output "alb_dns_name" {
+  value = aws_lb.main.dns_name
 }

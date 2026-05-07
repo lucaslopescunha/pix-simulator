@@ -1,4 +1,4 @@
-name: Terraform Destroy Test
+name: Terraform Destroy ECS Fargate
 
 on:
   workflow_dispatch:
@@ -9,10 +9,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      #################################################
+      # 1. Checkout do código
+      #################################################
+
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Configurar as credenciais da AWS para Helm e Terraform
+      #################################################
+      # 2. Configurar credenciais AWS
+      #################################################
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -20,20 +27,42 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # 2. Remover a aplicação do Kubernetes (Limpa o Load Balancer da AWS)
-      - name: Uninstall Helm Release
-        run: |
-          # O comando pode falhar se o cluster não existir, por isso o "|| true"
-          aws eks update-kubeconfig --name pix-simulator-cluster --region us-east-1 || true
-          helm uninstall pix-simulator || true
+      #################################################
+      # 3. Escalar ECS Service para 0 (boa prática)
+      #################################################
 
-      # 3. Preparar o Terraform
+      - name: Scale ECS Service to Zero
+        run: |
+          aws ecs update-service \
+            --cluster pix-simulator-cluster \
+            --service pix-simulator-service \
+            --desired-count 0 || true
+
+      #################################################
+      # 4. Aguardar estabilização
+      #################################################
+
+      - name: Wait ECS Service Stabilization
+        run: |
+          echo "Aguardando ECS finalizar as tasks..."
+          sleep 30
+
+      #################################################
+      # 5. Setup Terraform
+      #################################################
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # 4. Destruir a Infraestrutura (VPC, EKS, etc)
-      - name: Terraform Init e Destroy
+      #################################################
+      # 6. Terraform Destroy
+      #################################################
+
+      - name: Terraform Init and Destroy
         working-directory: ./terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           terraform init
           terraform destroy -auto-approve

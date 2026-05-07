@@ -2,48 +2,66 @@ name: Build and Push to Docker Hub
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "main"
 
 jobs:
-  build-and-push:
-    name: Build and Push
+  build-and-deploy:
+    name: Build, Push and Deploy ECS Fargate
     runs-on: ubuntu-latest
 
     steps:
+      #################################################
       # 1. Checkout do código
+      #################################################
+
       - name: Checkout code
         uses: actions/checkout@v4
 
+      #################################################
       # 2. Configurar Java
+      #################################################
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
           cache: maven
+
+      #################################################
+      # 3. Testes unitários
+      #################################################
 
       - name: Execute unit tests
         run: mvn test
 
-      # 3. Login no Docker Hub
+      #################################################
+      # 4. Login no Docker Hub
+      #################################################
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 4. Build e Push da imagem
-      - name: Build and push
+      #################################################
+      # 5. Build e Push da imagem
+      #################################################
+
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          # Substitua 'seu-usuario' pelo seu nome no Docker Hub ou use um Secret
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator:${{ github.sha }}
 
-      # ... (passos de Build e Push do Docker permanecem iguais) ...
+      #################################################
+      # 6. Credenciais AWS
+      #################################################
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,8 +70,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      #################################################
+      # 7. Setup Terraform
+      #################################################
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+
+      #################################################
+      # 8. Terraform Apply
+      #################################################
 
       - name: Terraform Apply
         working-directory: ./terraform
@@ -64,23 +90,30 @@ jobs:
           terraform init
           terraform apply -auto-approve
 
-      - name: Update KubeConfig
-        run: aws eks update-kubeconfig --name pix-simulator-cluster --region us-east-1
+      #################################################
+      # 9. Force New Deployment no ECS Fargate
+      #################################################
 
-      - name: Deploy with Helm
+      - name: Force New ECS Deployment
         run: |
-          helm upgrade --install pix-simulator ./k8s-chart \
-            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/pix-simulator \
-            --set image.tag=${{ github.sha }} \
-            --set service.type=LoadBalancer  \
-            --set service.port=80 \
-            --set containerPort=8080 \
-            --set serviceAccount.create=true
+          aws ecs update-service \
+            --cluster pix-simulator-cluster \
+            --service pix-simulator-service \
+            --force-new-deployment
+
+      #################################################
+      # 10. Mostrar URL do Load Balancer
+      #################################################
+
       - name: Get Load Balancer URL
         run: |
-          echo "Aguardando o Load Balancer gerar o endereço..."
-          sleep 30
-          URL=$(kubectl get svc pix-simulator -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Buscando DNS do Application Load Balancer..."
+
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName, 'pix-simulator')].DNSName" \
+            --output text)
+
           echo "------------------------------------------------"
-          echo "O LINK DA SUA APLICAÇÃO É: http://$URL"
+          echo "LINK DA SUA APLICAÇÃO:"
+          echo "http://$ALB_DNS"
           echo "------------------------------------------------"
