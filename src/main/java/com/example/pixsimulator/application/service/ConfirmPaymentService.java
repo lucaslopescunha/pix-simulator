@@ -24,6 +24,7 @@ public class ConfirmPaymentService implements ConfirmPaymentUseCase {
             throw new IllegalArgumentException("Payment not found %d ".formatted(id));
         }
         Payment p = opt.get();
+
         p.setStatus(PaymentStatus.CONFIRMED);
         p.setConfirmedAt(LocalDateTime.now(clock));
         p.setWebhookSent(false);
